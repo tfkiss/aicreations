@@ -1,18 +1,182 @@
-<!doctype html>
-<html lang="zh">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>我的 Space</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋 Web App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            gap: 1px;
+            background-color: #d1b38a;
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #f0e6d6;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+        .cell:hover {
+            background-color: #e0d2b8;
+        }
+        .cell.black::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: #000;
+        }
+        .cell.white::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #333;
+        }
+        #restart {
+            margin-top: 15px;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #restart:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
-    <main class="main-content">
-        <section class="intro-card">
-            <h1>欢迎光临我的 Space!</h1>
-            <p>你可以通过编辑 <i>index.html</i> 文件，随心所欲地定制这个空间。</p>
-            <p>别忘了看看 <a href="https://docs.gitcode.com/docs/help/home/ai-community/ai-space/" target="_blank">Spaces 文档</a>，了解更多有趣的玩法哦！</p>
-        </section>
-    </main>
+    <div id="board"></div>
+    <div id="status">轮到黑棋落子</div>
+    <button id="restart">重新开始</button>
+
+    <script>
+        const BOARD_SIZE = 15; // 15*15 棋盘
+        let board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)); // null:空, 'black':黑棋, 'white':白棋
+        let currentPlayer = 'black';
+        let gameOver = false;
+
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        const restartBtn = document.getElementById('restart');
+
+        // 初始化棋盘
+        function initBoard() {
+            boardEl.innerHTML = '';
+            board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+            currentPlayer = 'black';
+            gameOver = false;
+            statusEl.textContent = '轮到黑棋落子';
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('click', handleCellClick);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        // 处理落子
+        function handleCellClick(e) {
+            if (gameOver) return;
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+
+            if (board[row][col] !== null) return; // 已有棋子，无法落子
+
+            // 记录棋子并渲染
+            board[row][col] = currentPlayer;
+            e.target.classList.add(currentPlayer);
+
+            // 检查是否获胜
+            if (checkWin(row, col)) {
+                statusEl.textContent = `${currentPlayer === 'black' ? '黑棋' : '白棋'}获胜！`;
+                gameOver = true;
+                return;
+            }
+
+            // 切换玩家
+            currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            statusEl.textContent = `轮到${currentPlayer === 'black' ? '黑棋' : '白棋'}落子`;
+        }
+
+        // 检查获胜条件（横竖斜连成5子）
+        function checkWin(row, col) {
+            const player = board[row][col];
+            const directions = [
+                [[0, 1], [0, -1]],  // 水平
+                [[1, 0], [-1, 0]],  // 垂直
+                [[1, 1], [-1, -1]], // 正斜线
+                [[1, -1], [-1, 1]]  // 反斜线
+            ];
+
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                // 向一个方向计数
+                let [r, c] = [row + dir1[0], col + dir1[1]];
+                while (r >= 0 && r < BOARD_SIZE && c >=0 && c < BOARD_SIZE && board[r][c] === player) {
+                    count++;
+                    r += dir1[0];
+                    c += dir1[1];
+                }
+                // 向相反方向计数
+                [r, c] = [row + dir2[0], col + dir2[1]];
+                while (r >= 0 && r < BOARD_SIZE && c >=0 && c < BOARD_SIZE && board[r][c] === player) {
+                    count++;
+                    r += dir2[0];
+                    c += dir2[1];
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        // 重新开始游戏
+        restartBtn.addEventListener('click', initBoard);
+
+        // 页面加载时初始化棋盘
+        window.onload = initBoard;
+    </script>
 </body>
 </html>
